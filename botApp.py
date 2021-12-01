@@ -11,7 +11,7 @@ from Listener import Listener
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
+formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(message)s')
 
 file_handler = logging.FileHandler('tg_bot.log')
 file_handler.setLevel(logging.DEBUG)
@@ -60,6 +60,44 @@ g_apps = {}
 
 # END SETUP
 
+
+@g_bot.message_handler(commands=['start'])
+def __init__(message):
+    g_bot.send_message(
+        message.chat.id,
+        f'''
+Henlo thare. This is a simple CraigList postings listener
+
+To get started just type /init
+
+• Usage example:
+1. Go to craigslist and configure your search filter (e.g I want all cars from 3k-15k by owners in bay area). Try to sort by newest if applicable
+2. Copy the link and add it to this bot as follows:
+/add <name_your_search> <https://LookAtMyHorseMyHorseIsAmazing>
+/add Cars_3k-15k: https://sfbay.craigslist.org/search/sby/cto?purveyor-input=owner&min_price=3000&max_price=15000
+3. To start watching, type /run
+3. You are good to go, state of postings is freezed and if anything new appears you'll get a message :)
+
+• To look at links you are currently watching type /list
+
+• To remove a link from listening type: /remove <name_of_your_search>
+/remove Cars_3k-15k
+
+• To start watching postings type: /run
+
+• To stop: /stop
+
+• Links can be dinamically added while bot is listening, not need to /stop and /run it. Just use /add <name> <link>
+
+Notes:
+1. If server is restarted - your settings will be automatically restored and /run command will ba automatically invoked
+2. Don't spam if bot doesn't response, it means server is down, but when server is back to live it will try to execute all the commands you've spammed and can cause bad results
+3. autotrader. com/ search support may come soon
+
+For contribution (this was written on one evening before sleep but just in case :D):
+https://github.com/katolikyan/tg-bot-craigslist-postings-watcher
+        '''
+)
 
 
 def initialized(chat_id):

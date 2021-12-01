@@ -10,7 +10,7 @@ import time
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
-formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
+formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(message)s')
 
 file_handler = logging.FileHandler('listener.log')
 file_handler.setLevel(logging.DEBUG)
@@ -29,7 +29,11 @@ class Listener():
         self._last_query_time = None
         self._links_to_query = user_links or {}
         self._secs_to_next_query = 300
+        self._next_query_base_secs = 420
         self._last_query_results = []
+        self._parsersDispatcher = {
+            'craigslist': self.__parseCraigsList,
+        }
 
         self._first_start = True
         self._previous_ids = []
@@ -52,7 +56,7 @@ class Listener():
             self.__query()
             if container != None: container.extend(self._last_query_results)
 
-            self._secs_to_next_query = 300 + random.randint(-10, 60)
+            self._secs_to_next_query = self._next_query_base_secs + random.randint(-10, 60)
             time.sleep(self._secs_to_next_query)
 
 
@@ -108,14 +112,22 @@ class Listener():
     def is_running(self):
         return self._is_started
 
-    # this could be a separate class of parsers for different web pages
-    # and every instance of listener could attach a unique parser to it
+    # this could be a sepparate class of parcers for different web pages
+    # and every instance of listener could attach a unique parcer to it
     def __query(self):
         tmp_query_start_time = datetime.datetime.now() # to include time between start and queries finish
         tmp_query_results = []
         tmp_new_ids = []
 
         for name, link in self._links_to_query.items():
+            linkSplit = link.split('://')[1].split('/')[0].split('.')
+            web_src = [src for src in linkSplit if src in self._parsersDispatcher.keys()]
+            if len(web_src) < 1:
+                logger.error(f'skipping.. Couldn\'t find a parser for the {link}')
+                continue
+            if len(web_src) > 1: logger.error(f'Multiple parser found, something went wrong with {link}')
+            web_src = web_src[0]
+
             try:
                 resp = get(link)
             except Exception as e:
@@ -125,7 +137,11 @@ class Listener():
 
             results = None
             if resp.status_code == 200:
-                results = self.__parse(resp)
+                try:
+                    results = self._parsersDispatcher[web_src](resp)
+                except:
+                    logger.error(f'Something went wrong during html parcing for {link}')
+                    continue
             else:
                 logger.error(f'Server returned status code {resp.status_code}. skipping {name} query')
                 continue
@@ -146,7 +162,7 @@ class Listener():
         self._first_start = False
 
 
-    def __parse(self, resp):
+    def __parseCraigsList(self, resp):
         html_soup = BeautifulSoup(resp.text, 'html.parser')
         posts = html_soup.find_all('li', class_= 'result-row')
         results = []
@@ -175,7 +191,7 @@ class Listener():
 
 
 
-# TEST 
+# TEST
 
 # test = Listener()
 # test.add('MDX', 'https://sfbay.craigslist.org/search/cta?query=acura+Mdx&sort=rel&purveyor-input=all&srchType=T&hasPic=1&min_price=4000&max_price=15000')
